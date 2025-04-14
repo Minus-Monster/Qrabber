@@ -16,6 +16,7 @@ public:
     explicit CalibrationDirectoryDialog(QWidget *parent = nullptr);
     ~CalibrationDirectoryDialog();
     void setGrabber(Qylon::Grabber *g);
+    void generateAverageImages(QString savePath, QString saveName, int numFrames);
 
 private:
     Ui::CalibrationDirectoryDialog *ui;

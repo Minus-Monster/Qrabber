@@ -49,7 +49,7 @@
      <item>
       <widget class="QLineEdit" name="lineEditNameBright">
        <property name="text">
-        <string/>
+        <string>Bright.tiff</string>
        </property>
        <property name="readOnly">
         <bool>false</bool>
@@ -129,7 +129,7 @@
      <item>
       <widget class="QLineEdit" name="lineEditNameDark">
        <property name="text">
-        <string/>
+        <string>Dark.tiff</string>
        </property>
        <property name="placeholderText">
         <string>File Name</string>

@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
 #include <QAction>
+#include <QDockWidget>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -8,13 +9,15 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    QDockWidget *consoleWidget = new QDockWidget;
+    consoleWidget->setWidget(&console);
+    consoleWidget->setWindowTitle("Debug Console");
+    addDockWidget(Qt::BottomDockWidgetArea, consoleWidget);
+
     actionStart = new QAction(QIcon(":/Resources/Icon/icons8-play-48.png"), "Start", this);
     actionStart->setEnabled(false);
     connect(actionStart, &QAction::triggered, this, [this]{
-        // if(grabber->isInitialized()) grabber->continuousGrab();
-        // grabber->grabThreadLoop();
-        grabber->saveImage("/home/minwoo/", "test.tiff", 10);
-
+        if(grabber->isInitialized()) grabber->grabThreadLoop();
     });
     actionStop = new QAction(QIcon(":/Resources/Icon/icons8-stop-48.png"), "Stop", this);;
     actionStop->setEnabled(false);
@@ -58,7 +61,6 @@ void MainWindow::setGrabber(Qylon::Grabber *newGrabber){
 
     connect(grabber, &Qylon::Grabber::sendImage, this, [this](const QImage &image, unsigned int num){
         ui->widget->setImage(image);
-        // qDebug() << "Received image" << image;
     }, Qt::QueuedConnection);
     connect(grabber, &Qylon::Grabber::loadedApplet, this, [this]{
         actionStart->setEnabled(true);
@@ -69,4 +71,13 @@ void MainWindow::setGrabber(Qylon::Grabber *newGrabber){
     });
 
     cal->setGrabber(grabber);
+}
+
+void MainWindow::append(const QString &msg)
+{
+    QString text = msg;
+    if(!msg.contains("[QYLON]")){
+        text = "[SYSTEM] " + QTime::currentTime().toString() +" : " + msg;
+    }
+    console.append(text);
 }
