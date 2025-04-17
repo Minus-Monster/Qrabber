@@ -22,7 +22,10 @@ public:
     int getValue(const char *addr);
     bool setValue(const char *addr, int value);
 
+    void refreshAlldata();
+
     void print(QString text, int type=0);
+    void clearAll();
 
 private:
     Ui::CameraCommunication *ui;
