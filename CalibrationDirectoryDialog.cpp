@@ -1,6 +1,7 @@
 #include "CalibrationDirectoryDialog.h"
 #include "ui_CalibrationDirectoryDialog.h"
 #include <QFileDialog>
+#include <QMessageBox>
 
 CalibrationDirectoryDialog::CalibrationDirectoryDialog(QWidget *parent)
     : QDialog(parent)
@@ -55,12 +56,17 @@ void CalibrationDirectoryDialog::setGrabber(Qylon::Grabber *g){
         grabber->saveImage(ui->lineEditDirDark->text(), ui->lineEditNameDark->text(), ui->spinBoxDarkCnt->value());
     });
     connect(ui->pushButtonAverage, &QPushButton::clicked, this, [this]{
-        generateAverageImages(ui->lineEditDirBright->text(), ui->lineEditNameBright->text(), ui->spinBoxBrightCnt->value());
-        generateAverageImages(ui->lineEditDirDark->text(), ui->lineEditNameDark->text(), ui->spinBoxDarkCnt->value());
+        bool ok1=generateAverageImages(ui->lineEditDirBright->text(), ui->lineEditNameBright->text(), ui->spinBoxBrightCnt->value());
+        bool ok2=generateAverageImages(ui->lineEditDirDark->text(), ui->lineEditNameDark->text(), ui->spinBoxDarkCnt->value());
+        if(ok1&&ok2){
+            QMessageBox::information(this, this->windowTitle(), "Generated average images successfully.");
+        }else{
+            QMessageBox::warning(this, this->windowTitle(), "Failed to generate average images. \nPlease check the images that want to create the average image.");
+        }
     });
 }
 
-void CalibrationDirectoryDialog::generateAverageImages(QString savePath, QString saveName, int numFrames)
+bool CalibrationDirectoryDialog::generateAverageImages(QString savePath, QString saveName, int numFrames)
 {
     QStringList filters(QStringList() << "*[0-9].tiff");
     QDir path(savePath);
@@ -75,7 +81,7 @@ void CalibrationDirectoryDialog::generateAverageImages(QString savePath, QString
     });
 
     int count = qMin(numFrames, fileList.size());
-    if (count == 0) return;
+    if (count == 0) return false;
 
     int width = 0, height = 0, bpp = 0;
     bool valid = true;
@@ -95,7 +101,7 @@ void CalibrationDirectoryDialog::generateAverageImages(QString savePath, QString
             if (bpp != 16) {
                 qWarning() << "Only Grayscale16 supported.";
                 IoFreeImage(handle);
-                return;
+                return false;
             }
         } else {
             if (IoGetWidth(handle) != width || IoGetHeight(handle) != height || IoGetBitsPerPixel(handle) != bpp) {
@@ -109,7 +115,7 @@ void CalibrationDirectoryDialog::generateAverageImages(QString savePath, QString
         IoFreeImage(handle);
     }
 
-    if (!valid || validFiles.empty()) return;
+    if (!valid || validFiles.empty()) return false;
 
     std::vector<double> sumPixels(width * height, 0);
 
@@ -152,5 +158,7 @@ void CalibrationDirectoryDialog::generateAverageImages(QString savePath, QString
         qDebug() << "Saved:" << outputFilePath << outputUpperFilePath << outputLowerFilePath;
     } else {
         qWarning() << "Failed to save one or more images.";
+        return false;
     }
+    return true;
 }
