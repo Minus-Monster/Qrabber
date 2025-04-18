@@ -6,6 +6,7 @@
 #include "CameraCommunication.h"
 #include "CalibrationDirectoryDialog.h"
 #include "Modules/Console.h"
+#include <QSpinBox>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -35,5 +36,6 @@ private:
     QAction *actionStop;
     QAction *actionConf;
     QAction *actionSerial;
+    QSpinBox *spinboxGrabCnt;
 };
 #endif // MAINWINDOW_H

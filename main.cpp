@@ -15,13 +15,13 @@ int main(int argc, char *argv[])
 {
     Q_INIT_RESOURCE(Resources);
     QApplication a(argc, argv);
-    // a.setStyle(QStyleFactory::create("Fusion"));
+    a.setStyle(QStyleFactory::create("Fusion"));
 
     MainWindow w;
     window = &w;
     w.show();
     qRegisterMetaType<QTextCursor>("QTextCursor");
-    // qInstallMessageHandler(setDebugMessage);
+    qInstallMessageHandler(setDebugMessage);
 
     Qylon::Qylon q;
     w.setGrabber(q.addGrabber());

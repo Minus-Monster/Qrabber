@@ -17,7 +17,19 @@ MainWindow::MainWindow(QWidget *parent)
     actionStart = new QAction(QIcon(":/Resources/Icon/icons8-play-48.png"), "Start", this);
     actionStart->setEnabled(false);
     connect(actionStart, &QAction::triggered, this, [this]{
-        if(grabber->isInitialized()) grabber->grabThreadLoop();
+        if(grabber->isInitialized()){
+            if(spinboxGrabCnt->value()==0){
+                grabber->grabThreadLoop();
+            }else{
+                // Check what the detector's exposure mode is
+                // Fg_setParameter(fg, FG_TREGGERMODE, ASYNC_SOFTWARE_TRIGGER, 0);
+                // Fg_setParameter(fg, FG_EXPOSURE, &nExposureInMicroSec, nCamPort);
+                // Fg_setParameter(fg, FG_EXSYNCON, &nExsyncOn, nCamPort)
+                // Fg_AcquireEx(fg, nCamPort, GRAB_INFINITE, ACQ_STANDARD, pMem0))
+                // while (Fg_sendSoftwareTrigger(fg, nCamPort) == FG_SOFTWARE_TRIGGER_BUSY)
+                //    ;
+            }
+        }
     });
     actionStop = new QAction(QIcon(":/Resources/Icon/icons8-stop-48.png"), "Stop", this);;
     actionStop->setEnabled(false);
@@ -35,11 +47,16 @@ MainWindow::MainWindow(QWidget *parent)
         cal->show();
     });
 
+    spinboxGrabCnt = new QSpinBox(ui->widget);
+    spinboxGrabCnt->setEnabled(false);
+    spinboxGrabCnt->setRange(0, 1000);
+
     ui->widget->addAction(actionCalFolder);
     ui->widget->addAction(actionSerial);
     ui->widget->addAction(actionConf);
     ui->widget->addAction(actionSeperator);
     ui->widget->addAction(actionStop);
+    ui->widget->addWidget(spinboxGrabCnt);
     ui->widget->addAction(actionStart);
     ui->widget->setFPSEnable(true);
     connect(actionConf, &QAction::triggered, this, [this]{
@@ -64,10 +81,12 @@ void MainWindow::setGrabber(Qylon::Grabber *newGrabber){
     }, Qt::QueuedConnection);
     connect(grabber, &Qylon::Grabber::loadedApplet, this, [this]{
         actionStart->setEnabled(true);
+        spinboxGrabCnt->setEnabled(true);
     });
     connect(grabber, &Qylon::Grabber::grabbingState, this, [this](bool isGrabbing){
         actionStop->setEnabled(isGrabbing);
         actionStart->setEnabled(!isGrabbing);
+        spinboxGrabCnt->setEnabled(!isGrabbing);
     });
 
     cal->setGrabber(grabber);
