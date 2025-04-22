@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include "Grabber.h"
+#include "CameraCommunication.h"
 
 namespace Ui {
 class CalibrationDirectoryDialog;
@@ -16,11 +17,15 @@ public:
     explicit CalibrationDirectoryDialog(QWidget *parent = nullptr);
     ~CalibrationDirectoryDialog();
     void setGrabber(Qylon::Grabber *g);
+    void setComm(CameraCommunication *c){
+        cc = c;
+    }
     bool generateAverageImages(QString savePath, QString saveName, int numFrames);
 
 private:
     Ui::CalibrationDirectoryDialog *ui;
     Qylon::Grabber *grabber;
+    CameraCommunication *cc;
 };
 
 #endif // CALIBRATIONDIRECTORYDIALOG_H

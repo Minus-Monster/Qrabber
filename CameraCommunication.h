@@ -2,6 +2,8 @@
 #define CAMERACOMMUNICATION_H
 
 #include <QDialog>
+#include <QDoubleSpinBox>
+#include <QComboBox>
 
 namespace Ui {
 class CameraCommunication;
@@ -15,17 +17,30 @@ public:
     explicit CameraCommunication(QWidget *parent = nullptr);
     ~CameraCommunication();
 
-    void loadLibrary(std::string &libPath);
+    bool connectSerial();
+    void disconnectSerial();
+    bool loadLibrary(std::string &libPath);
 
-    void debugUpdate(QString message);
+    void print(QString message, int num=0);
 
     int getValue(const char *addr);
     bool setValue(const char *addr, int value);
 
     void refreshAlldata();
-
-    void print(QString text, int type=0);
     void clearAll();
+
+    double getExposureTime();
+    QString getExposureMode();
+    int getFrameCount();
+
+public slots:
+    void setExposureMode(QString mode);
+    void setFrameCount(int frame);
+    void setExposureTime(double time);
+
+signals:
+    void refreshed();
+
 
 private:
     Ui::CameraCommunication *ui;

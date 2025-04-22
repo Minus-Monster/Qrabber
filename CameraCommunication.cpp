@@ -44,19 +44,25 @@ CameraCommunication::CameraCommunication(QWidget *parent)
     , ui(new Ui::CameraCommunication)
 {
     ui->setupUi(this);
+    initInterface();
     connect(ui->pushButtonInit, &QPushButton::toggled, this, [this](bool toggle){
         try{
             if(toggle){
                 std::string string("/opt/Basler/FramegrabberSDK/lib64/libclsersis.so");
-                loadLibrary(string);
-                // int fw0=getValue(ADDR_FWVER0);
-                // int fw1=getValue(ADDR_FWVER1);
-                // print("Version:" + QString::number(fw1) + " Revision:" + QString::number(fw0), true);
-                if(!initInterface()){
+                if(loadLibrary(string)){
+                    int fw0=getValue(ADDR_FWVER0);
+                    int fw1=getValue(ADDR_FWVER1);
+                    print("Version:" + QString::number(fw1) + " Revision:" + QString::number(fw0), true);
+                    initInterface();
+
+                    setValue(ADDR_CNTRL0, VALUE_TRIG_MODE_25);
+                    setValue(ADDR_SET0, VALUE_FULLWELL_LOW);
+                    setValue(ADDR_BINNING, VALUE_BINNING_1X1);
+
+                    refreshAlldata();
+                }else{
                     ui->pushButtonInit->setChecked(false);
                     QMessageBox::warning(this, "Detector Configuration", "Initialization is failed. Please check your camera connections.");
-                }else{
-                    refreshAlldata();
                 }
             }else{
                 ui->comboBoxBinning->setEnabled(false);
@@ -65,6 +71,7 @@ CameraCommunication::CameraCommunication(QWidget *parent)
                 ui->doubleSpinBoxExposureTime->setEnabled(false);
                 ui->spinBoxH->setEnabled(false);
                 ui->spinBoxY->setEnabled(false);
+                ui->spinBox_seqFrame->setEnabled(false);
                 ui->spinBoxWidth->setEnabled(false);
                 ui->spinBoxHeight->setEnabled(false);
                 clearAll();
@@ -80,6 +87,18 @@ CameraCommunication::~CameraCommunication()
     delete ui;
 }
 
+bool CameraCommunication::connectSerial()
+{
+    ui->pushButtonInit->setChecked(true);
+
+    return true;
+}
+
+void CameraCommunication::disconnectSerial()
+{
+    ui->pushButtonInit->setChecked(false);
+}
+
 bool CameraCommunication::initInterface(){
     /// Get trigMode ("R0000\r"), set trigMode ("W0000")
     ui->comboBoxTriggerMode->addItem("25 FPS", VALUE_TRIG_MODE_25); // 16
@@ -90,10 +109,19 @@ bool CameraCommunication::initInterface(){
     connect(ui->comboBoxTriggerMode, &QComboBox::currentTextChanged, this, [this](QString value){
         int idx = ui->comboBoxTriggerMode->findText(value);
         int val = ui->comboBoxTriggerMode->itemData(idx).toInt();
+        bool isSequence = (ui->comboBoxTriggerMode->currentText() == "Sequence");
+        ui->spinBox_seqFrame->setEnabled(isSequence);
+
         setValue(ADDR_CNTRL0, val);
         refreshAlldata();
     });
     ui->comboBoxTriggerMode->setEnabled(true);
+
+    ui->spinBox_seqFrame->setRange(0, 9999);
+    connect(ui->spinBox_seqFrame, &QSpinBox::editingFinished, this, [this]{
+        setValue(ADDR_NUM_FRAME_IN_SEQ, ui->spinBox_seqFrame->value());
+        refreshAlldata();
+    });
 
     /// FULL WELL
     ui->comboBoxFullWell->addItem("Low", VALUE_FULLWELL_LOW); // 0
@@ -172,36 +200,41 @@ bool CameraCommunication::initInterface(){
     ui->spinBoxHeight->setEnabled(false);
 
     print("Initialization finished.");
+
     return true;
 }
 
-void CameraCommunication::loadLibrary(std::string &libPath)
+bool CameraCommunication::loadLibrary(std::string &libPath)
 {
     print("Loading a communication library...");
     void *handle = dlopen(libPath.c_str(), RTLD_LAZY);
     if (!handle) {
-        throw std::runtime_error("Failed to load library: " + libPath);
         print("Failed to load a library. Please check the library. " + QString::fromStdString(libPath), 2);
+        return false;
     }
     try {
         auto error = clSerialInit(0, &serialRefPtr);
         if(error==0){
             clSetBaudRate(serialRefPtr, CL_BAUDRATE_115200);
             print("Library loaded.");
+            return true;
         }else{
             print("Library loading failed. Please check the serial status or libraries.", 2);
             // Init error
+            return false;
         }
     } catch (const std::exception& e) {
         print("Error occurred. " + QString::fromStdString(e.what()), 2);
     } catch (...){
         print("Error occurred with an unknown error.", 2);
     }
+    return false;
 }
 
-void CameraCommunication::debugUpdate(QString message)
+void CameraCommunication::print(QString message, int num)
 {
-    ui->textEditDebug->append(message);
+    if(num==2) qWarning().noquote() << message;
+    else qDebug().noquote() << message;
 }
 
 int CameraCommunication::getValue(const char* addr){
@@ -293,6 +326,12 @@ void CameraCommunication::refreshAlldata()
     }
     ui->comboBoxTriggerMode->blockSignals(false);
 
+    ui->spinBox_seqFrame->blockSignals(true);
+    bool isSequence = (ui->comboBoxTriggerMode->currentText() == "Sequence");
+    ui->spinBox_seqFrame->setEnabled(isSequence);
+    ui->spinBox_seqFrame->setValue(getValue(ADDR_NUM_FRAME_IN_SEQ));
+    ui->spinBox_seqFrame->blockSignals(false);
+
     int fullWell = getValue(ADDR_SET0);
     ui->comboBoxFullWell->blockSignals(true);
     switch(fullWell){
@@ -317,7 +356,6 @@ void CameraCommunication::refreshAlldata()
         if (trigMode == VALUE_TRIG_MODE_25) {
             return 40.0;
         }
-
         int msb = getValue(ADDR_TEXPMSB);
         int lsb = getValue(ADDR_TEXPLSB);
         int treadout_lsb = getValue(ADDR_TREADOUT_LSB);
@@ -353,20 +391,7 @@ void CameraCommunication::refreshAlldata()
     ui->spinBoxHeight->setValue(getValue(ADDR_IMG_HEIGHT));
     ui->spinBoxHeight->blockSignals(false);
 
-}
-
-void CameraCommunication::print(QString text, int type)
-{
-    if(type==0){
-        ui->textEditDebug->setTextColor(Qt::black);
-    }else if(type==1){ // info
-        ui->textEditDebug->setTextColor(Qt::darkGreen);
-    }else if(type==2)
-        ui->textEditDebug->setTextColor(Qt::darkBlue);
-    else{
-        ui->textEditDebug->setTextColor(Qt::darkRed);
-    }
-    ui->textEditDebug->append("["+QTime::currentTime().toString() +"] " + text);
+    emit refreshed();
 }
 
 void CameraCommunication::clearAll()
@@ -384,12 +409,44 @@ void CameraCommunication::clearAll()
     ui->comboBoxTriggerMode->clear();
     ui->comboBoxBinning->clear();
     ui->comboBoxFullWell->clear();
+    ui->spinBox_seqFrame->setValue(0);
     ui->spinBoxH->setValue(0);
     ui->spinBoxY->setValue(0);
     ui->spinBoxWidth->setValue(0);
     ui->spinBoxHeight->setValue(0);
     ui->doubleSpinBoxExposureTime->setValue(0);
 
+}
+
+double CameraCommunication::getExposureTime()
+{
+    return ui->doubleSpinBoxExposureTime->value();
+}
+
+QString CameraCommunication::getExposureMode()
+{
+    return ui->comboBoxTriggerMode->currentText();
+}
+
+int CameraCommunication::getFrameCount()
+{
+    return ui->spinBox_seqFrame->value();
+}
+
+void CameraCommunication::setExposureMode(QString mode)
+{
+    ui->comboBoxTriggerMode->setCurrentText(mode);
+}
+
+void CameraCommunication::setFrameCount(int frame)
+{
+    ui->spinBox_seqFrame->setValue(frame);
+}
+
+void CameraCommunication::setExposureTime(double time)
+{
+    ui->doubleSpinBoxExposureTime->setValue(time);
+    emit ui->doubleSpinBoxExposureTime->editingFinished();
 }
 
 

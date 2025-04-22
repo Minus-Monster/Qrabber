@@ -44,6 +44,7 @@ void CalibrationDirectoryDialog::setGrabber(Qylon::Grabber *g){
             if(dir.mkpath("."));
             else qDebug() << "Failed to create " + ui->lineEditDirBright->text() + " directory.";
         }
+        cc->setExposureMode("Sequence");
         grabber->saveImage(ui->lineEditDirBright->text(), ui->lineEditNameBright->text(), ui->spinBoxBrightCnt->value());
     });
     connect(ui->pushButtonDarkStart, &QPushButton::clicked, this, [this]{
@@ -53,6 +54,7 @@ void CalibrationDirectoryDialog::setGrabber(Qylon::Grabber *g){
             if(dir.mkpath("."));
             else qDebug() << "Failed to create " + ui->lineEditDirDark->text() + " directory.";
         }
+        cc->setExposureMode("Sequence");
         grabber->saveImage(ui->lineEditDirDark->text(), ui->lineEditNameDark->text(), ui->spinBoxDarkCnt->value());
     });
     connect(ui->pushButtonAverage, &QPushButton::clicked, this, [this]{

@@ -8,26 +8,31 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow), comm(new CameraCommunication(this)), cal(new CalibrationDirectoryDialog(this))
 {
     ui->setupUi(this);
+    dockComm = new QDockWidget(this);
+    dockGrabber = new QDockWidget(this);
+    dockComm->hide();
+    dockComm->setWindowTitle("Detector setting");
+    dockGrabber->hide();
+    dockGrabber->setWindowTitle("Grabber setting");
+    addDockWidget(Qt::RightDockWidgetArea, dockGrabber);
+    addDockWidget(Qt::RightDockWidgetArea, dockComm);
 
     QDockWidget *consoleWidget = new QDockWidget;
     consoleWidget->setWidget(&console);
     consoleWidget->setWindowTitle("Debug Console");
     addDockWidget(Qt::BottomDockWidgetArea, consoleWidget);
+    setCorner(Qt::BottomRightCorner, Qt::RightDockWidgetArea);
+    setCorner(Qt::BottomLeftCorner, Qt::LeftDockWidgetArea);
 
     actionStart = new QAction(QIcon(":/Resources/Icon/icons8-play-48.png"), "Start", this);
     actionStart->setEnabled(false);
     connect(actionStart, &QAction::triggered, this, [this]{
         if(grabber->isInitialized()){
-            if(spinboxGrabCnt->value()==0){
+            if(ui->comboBoxExposureMode->currentText() != "Sequence"){
                 grabber->grabThreadLoop();
             }else{
-                // Check what the detector's exposure mode is
-                // Fg_setParameter(fg, FG_TREGGERMODE, ASYNC_SOFTWARE_TRIGGER, 0);
-                // Fg_setParameter(fg, FG_EXPOSURE, &nExposureInMicroSec, nCamPort);
-                // Fg_setParameter(fg, FG_EXSYNCON, &nExsyncOn, nCamPort)
-                // Fg_AcquireEx(fg, nCamPort, GRAB_INFINITE, ACQ_STANDARD, pMem0))
-                // while (Fg_sendSoftwareTrigger(fg, nCamPort) == FG_SOFTWARE_TRIGGER_BUSY)
-                //    ;
+                int frame = ui->spinBoxFrames->value();
+                grabber->grabThreadLoop(frame);
             }
         }
     });
@@ -47,25 +52,111 @@ MainWindow::MainWindow(QWidget *parent)
         cal->show();
     });
 
-    spinboxGrabCnt = new QSpinBox(ui->widget);
-    spinboxGrabCnt->setEnabled(false);
-    spinboxGrabCnt->setRange(0, 1000);
-
     ui->widget->addAction(actionCalFolder);
     ui->widget->addAction(actionSerial);
     ui->widget->addAction(actionConf);
     ui->widget->addAction(actionSeperator);
     ui->widget->addAction(actionStop);
-    ui->widget->addWidget(spinboxGrabCnt);
     ui->widget->addAction(actionStart);
     ui->widget->setFPSEnable(true);
-    connect(actionConf, &QAction::triggered, this, [this]{
-        grabber->getWidget()->setParent(this, Qt::WindowFlags::enum_type::Dialog);
-        grabber->getWidget()->show();
+
+    actionConf->setCheckable(true);
+    connect(actionConf, &QAction::toggled, this, [this](bool toggle){
+        if(toggle){
+            grabber->getWidget()->setParent(this, Qt::WindowFlags::enum_type::Dialog);
+            dockGrabber->setWidget(grabber->getWidget());
+            dockGrabber->show();
+        }else{
+            dockGrabber->hide();
+        }
     });
-    connect(actionSerial, &QAction::triggered, this, [this]{
-        comm->show();
+    connect(dockGrabber, &QDockWidget::visibilityChanged, this, [this](bool visible){
+        actionConf->blockSignals(true);
+        actionConf->setChecked(visible);
+        actionConf->blockSignals(false);
+        if(visible){
+            dockGrabber->show();
+        }else{
+            dockGrabber->hide();
+        }
     });
+    actionSerial->setCheckable(true);
+    connect(actionSerial, &QAction::triggered, this, [this](bool toggle){
+        if(toggle){
+            dockComm->setWidget(comm);
+            dockComm->show();
+        }else{
+            dockComm->hide();
+        }
+    });
+    connect(dockComm, &QDockWidget::visibilityChanged, this, [this](bool visible){
+        actionSerial->blockSignals(true);
+        actionSerial->setChecked(visible);
+        actionSerial->blockSignals(false);
+        if(visible){
+            dockComm->show();
+        } else{
+            dockComm->hide();
+        }
+    });
+
+
+    connect(ui->pushButtonInit, &QPushButton::toggled, this, [this](bool on){
+        if(on){
+            QString path = "/opt/Basler/FramegrabberSDK/Hardware Applets/mE5-MA-VCL";
+            bool applet = grabber->loadApplet(path+"/GaiaVision_PRJ_V2_Linux_AMD64.hap");
+            bool conf = false;
+            if(applet) conf = grabber->loadConfiguration(path+"/GaiaVision.mcf", true);
+
+            if(conf) qDebug() << "Framegrabber is ready.";
+            else qDebug() << "Init failed. Framegrabber is not set.";
+            comm->connectSerial();
+
+            ui->comboBoxExposureMode->setCurrentText(comm->getExposureMode());
+            ui->spinBoxFrames->setValue(comm->getFrameCount()-1);
+            ui->checkBoxCorrection->setChecked(grabber->getParameterIntValue("Device1_Process0_Parameter_ShadingEnable", 0));
+
+            connect(ui->comboBoxExposureMode, &QComboBox::currentTextChanged, comm, &CameraCommunication::setExposureMode);
+            connect(ui->spinBoxFrames, &QSpinBox::editingFinished, comm, [this]{
+                comm->setFrameCount(ui->spinBoxFrames->value()+1);
+            });
+            connect(ui->doubleSpinBoxExp, &QDoubleSpinBox::editingFinished, comm, [this]{
+                comm->setExposureTime(ui->doubleSpinBoxExp->value());
+            });
+            connect(ui->checkBoxCorrection, &QCheckBox::checkStateChanged, this, [this](Qt::CheckState state){
+                if(state == Qt::CheckState::Checked){
+                    grabber->setParameterValue("Device1_Process0_Parameter_ShadingEnable", 1);
+                }else{
+                    grabber->setParameterValue("Device1_Process0_Parameter_ShadingEnable", 0);
+                }
+            });
+            connect(comm, &CameraCommunication::refreshed, this, [this]{
+                ui->comboBoxExposureMode->setCurrentText(comm->getExposureMode());
+                ui->spinBoxFrames->setValue(comm->getFrameCount()-1);
+                ui->doubleSpinBoxExp->setValue(comm->getExposureTime());
+            });
+
+        }else{
+            grabber->release();
+            comm->disconnectSerial();
+
+            disconnect(ui->comboBoxExposureMode, &QComboBox::currentTextChanged, nullptr, nullptr);
+            disconnect(ui->spinBoxFrames, &QSpinBox::editingFinished, nullptr, nullptr);
+            disconnect(ui->doubleSpinBoxExp, &QDoubleSpinBox::editingFinished, nullptr, nullptr);
+            disconnect(ui->checkBoxCorrection, &QCheckBox::checkStateChanged, nullptr, nullptr);
+            disconnect(comm, &CameraCommunication::refreshed, nullptr, nullptr);
+
+            ui->spinBoxFrames->setValue(0);
+            ui->doubleSpinBoxExp->setValue(0.);
+            ui->comboBoxExposureMode->setCurrentText("Unknown");
+            ui->checkBoxCorrection->setChecked(false);
+        }
+        ui->comboBoxExposureMode->setEnabled(on);
+        ui->spinBoxFrames->setEnabled(on);
+        ui->checkBoxCorrection->setEnabled(on);
+        ui->doubleSpinBoxExp->setEnabled(on);
+    });
+    cal->setComm(comm);
 }
 
 MainWindow::~MainWindow()
@@ -81,14 +172,17 @@ void MainWindow::setGrabber(Qylon::Grabber *newGrabber){
     }, Qt::QueuedConnection);
     connect(grabber, &Qylon::Grabber::loadedApplet, this, [this]{
         actionStart->setEnabled(true);
-        spinboxGrabCnt->setEnabled(true);
     });
     connect(grabber, &Qylon::Grabber::grabbingState, this, [this](bool isGrabbing){
         actionStop->setEnabled(isGrabbing);
         actionStart->setEnabled(!isGrabbing);
-        spinboxGrabCnt->setEnabled(!isGrabbing);
     });
-
+    connect(grabber, &Qylon::Grabber::released, this, [this]{
+        actionStart->setEnabled(false);
+    });
+    connect(grabber, &Qylon::Grabber::updatedParametersValue, this, [this]{
+        ui->checkBoxCorrection->setChecked(grabber->getParameterIntValue("Device1_Process0_Parameter_ShadingEnable", 0));
+    });
     cal->setGrabber(grabber);
 }
 

@@ -7,6 +7,7 @@
 #include "CalibrationDirectoryDialog.h"
 #include "Modules/Console.h"
 #include <QSpinBox>
+#include <QDockWidget>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -36,6 +37,8 @@ private:
     QAction *actionStop;
     QAction *actionConf;
     QAction *actionSerial;
-    QSpinBox *spinboxGrabCnt;
+
+    QDockWidget *dockGrabber;
+    QDockWidget *dockComm;
 };
 #endif // MAINWINDOW_H
