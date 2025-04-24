@@ -2,7 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include "Grabber.h"
+#include "Grabber/Grabber.h"
 #include "CameraCommunication.h"
 #include "CalibrationDirectoryDialog.h"
 #include "Modules/Console.h"

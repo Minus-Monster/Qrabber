@@ -2,7 +2,7 @@
 #define CALIBRATIONDIRECTORYDIALOG_H
 
 #include <QDialog>
-#include "Grabber.h"
+#include "Grabber/Grabber.h"
 #include "CameraCommunication.h"
 
 namespace Ui {
