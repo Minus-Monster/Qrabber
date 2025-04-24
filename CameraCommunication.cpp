@@ -1,6 +1,10 @@
 #include "CameraCommunication.h"
 #include "ui_CameraCommunication.h"
+#ifdef _WIN32
+#include <Windows.h>
+#else
 #include <dlfcn.h>
+#endif
 #include <iostream>
 #include "clser.h"
 #include <QTime>
@@ -207,7 +211,11 @@ bool CameraCommunication::initInterface(){
 bool CameraCommunication::loadLibrary(std::string &libPath)
 {
     print("Loading a communication library...");
+#ifdef _WIN32
+    HMODULE handle = LoadLibraryA(libPath.c_str());
+#else
     void *handle = dlopen(libPath.c_str(), RTLD_LAZY);
+#endif
     if (!handle) {
         print("Failed to load a library. Please check the library. " + QString::fromStdString(libPath), 2);
         return false;
