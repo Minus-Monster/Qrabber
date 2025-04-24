@@ -9,6 +9,7 @@
 #include "clser.h"
 #include <QTime>
 #include <QMessageBox>
+#include <QDebug>
 
 #define ADDR_CNTRL0 "000"
 #define ADDR_SET0 "003" // FULL WELL is in [2]

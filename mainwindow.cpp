@@ -123,7 +123,7 @@ MainWindow::MainWindow(QWidget *parent)
             connect(ui->doubleSpinBoxExp, &QDoubleSpinBox::editingFinished, comm, [this]{
                 comm->setExposureTime(ui->doubleSpinBoxExp->value());
             });
-            connect(ui->checkBoxCorrection, &QCheckBox::checkStateChanged, this, [this](Qt::CheckState state){
+            connect(ui->checkBoxCorrection, &QCheckBox::stateChanged, this, [this](int state){
                 if(state == Qt::CheckState::Checked){
                     grabber->setParameterValue("Device1_Process0_Parameter_ShadingEnable", 1);
                 }else{
@@ -143,7 +143,7 @@ MainWindow::MainWindow(QWidget *parent)
             disconnect(ui->comboBoxExposureMode, &QComboBox::currentTextChanged, nullptr, nullptr);
             disconnect(ui->spinBoxFrames, &QSpinBox::editingFinished, nullptr, nullptr);
             disconnect(ui->doubleSpinBoxExp, &QDoubleSpinBox::editingFinished, nullptr, nullptr);
-            disconnect(ui->checkBoxCorrection, &QCheckBox::checkStateChanged, nullptr, nullptr);
+            disconnect(ui->checkBoxCorrection, &QCheckBox::stateChanged, nullptr, nullptr);
             disconnect(comm, &CameraCommunication::refreshed, nullptr, nullptr);
 
             ui->spinBoxFrames->setValue(0);
