@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
     window = &w;
     w.show();
     qRegisterMetaType<QTextCursor>("QTextCursor");
-    // qInstallMessageHandler(setDebugMessage);
+    qInstallMessageHandler(setDebugMessage);
 
     Qylon::Qylon q;
     w.setGrabber(q.addGrabber());
